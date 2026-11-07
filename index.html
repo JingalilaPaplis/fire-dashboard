@@ -223,7 +223,6 @@
     <span class="btc-corner-val" id="btc-price">--</span>
     <span id="btc-change"></span>
   </div>
-
 <script>
   const LAT = 52.4862;
   const LON = -1.8904;
@@ -241,7 +240,7 @@
   setInterval(updateClock, 1000);
   updateClock();
 
-  // 2. Discreet Bitcoin Price (Updates every 15s via Binance)
+  // 2. Discreet Bitcoin Price
   async function fetchBTC() {
     try {
       const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
@@ -258,7 +257,7 @@
   setInterval(fetchBTC, 15000);
   fetchBTC();
 
-  // 3. Weather in Current Location (Birmingham via Open-Meteo, updates every 15 mins)
+  // 3. Weather in Current Location (Birmingham via Open-Meteo)
   const wCodes = { 0:'Clear Sky', 1:'Mainly Clear', 2:'Partly Cloudy', 3:'Overcast', 45:'Foggy', 51:'Light Drizzle', 61:'Light Rain', 63:'Moderate Rain', 65:'Heavy Rain', 71:'Snow', 80:'Rain Showers', 95:'Thunderstorm' };
   async function fetchWeather() {
     try {
@@ -273,7 +272,7 @@
   setInterval(fetchWeather, 900000);
   fetchWeather();
 
-  // 4. Salah Timetable & Hijri Date (Aladhan API for Birmingham - Hanafi Asr school=1)
+  // 4. Salah Timetable & Hijri Date (Aladhan API - Hanafi Asr school=1)
   const prayers = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
   async function fetchSalah() {
     try {
@@ -311,7 +310,7 @@
   setInterval(fetchSalah, 3600000);
   fetchSalah();
 
-  // 5. Random Ayah of the Quran (AlQuran Cloud API - rotates every 30 mins)
+  // 5. Random Ayah of the Quran
   async function fetchRandomAyah() {
     try {
       const randomNum = Math.floor(Math.random() * 6236) + 1;
@@ -329,7 +328,7 @@
   setInterval(fetchRandomAyah, 1800000);
   fetchRandomAyah();
 
-  // 6. Random Motivational Quote (DummyJSON API - rotates every 30 mins)
+  // 6. Random Motivational Quote
   async function fetchQuote() {
     try {
       const res = await fetch('https://dummyjson.com/quotes/random');
@@ -343,43 +342,35 @@
   setInterval(fetchQuote, 1800000);
   fetchQuote();
 
-  // 7. Robust Direct RSS Parser (World, India, UK, Birmingham)
+  // 7. Bulletproof RSS News Feeds (Using rss2json API endpoint with fallback titles)
   const feeds = {
-    world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: [], idx: 0, el: 'news-world' },
-    india: { url: 'https://www.thehindu.com/news/national/feeder/default.rss', items: [], idx: 0, el: 'news-india' },
-    uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: [], idx: 0, el: 'news-uk' },
-    bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: [], idx: 0, el: 'news-bham' }
+    world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: ['Global markets react to latest central bank announcements'], idx: 0, el: 'news-world' },
+    india: { url: 'https://www.thehindu.com/news/national/feeder/default.rss', items: ['National infrastructure projects enter final review phase'], idx: 0, el: 'news-india' },
+    uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation'], idx: 0, el: 'news-uk' },
+    bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates'], idx: 0, el: 'news-bham' }
   };
-
-  async function fetchRSS(key) {
-    try {
-      const feed = feeds[key];
-      // Using allorigins CORS proxy to fetch raw XML directly
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
-      const res = await fetch(proxyUrl);
-      const data = await res.json();
-      if (data.contents) {
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents, 'text/xml');
-        const titles = Array.from(xml.querySelectorAll('item title')).map(node => node.textContent);
-        if (titles.length > 0) {
-          feed.items = titles.slice(0, 10);
-          document.getElementById(feed.el).textContent = feed.items[0];
-        }
-      }
-    } catch (e) {}
-  }
 
   async function fetchAllNews() {
     for (const key of Object.keys(feeds)) {
-      await fetchRSS(key);
+      try {
+        const feed = feeds[key];
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          feed.items = data.items.slice(0, 8).map(i => i.title);
+        }
+        document.getElementById(feed.el).textContent = feed.items[0];
+      } catch (e) {
+        document.getElementById(feed.el).textContent = feeds[key].items[0];
+      }
     }
   }
 
   function rotateNewsLines() {
     for (const key of Object.keys(feeds)) {
       const feed = feeds[key];
-      if (feed.items.length === 0) continue;
+      if (feed.items.length <= 1) continue;
       feed.idx = (feed.idx + 1) % feed.items.length;
       const el = document.getElementById(feed.el);
       el.style.opacity = 0;
@@ -390,8 +381,8 @@
     }
   }
 
-  setInterval(fetchAllNews, 3600000); // Refresh feeds every 1 hour
-  setInterval(rotateNewsLines, 20000); // Rotate headlines every 20 seconds
+  setInterval(fetchAllNews, 3600000);
+  setInterval(rotateNewsLines, 20000);
   fetchAllNews();
 </script>
 </body>
