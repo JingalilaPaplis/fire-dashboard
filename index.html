@@ -343,7 +343,7 @@
   setInterval(fetchQuote, 1800000);
   fetchQuote();
 
-  // 7. World, India, UK & Birmingham Headlines (Fetched every 1 hour, rotates top items every 20s)
+  // 7. Robust Direct RSS Parser (World, India, UK, Birmingham)
   const feeds = {
     world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: [], idx: 0, el: 'news-world' },
     india: { url: 'https://www.thehindu.com/news/national/feeder/default.rss', items: [], idx: 0, el: 'news-india' },
@@ -351,18 +351,28 @@
     bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: [], idx: 0, el: 'news-bham' }
   };
 
-  async function fetchAllNews() {
-    for (const key of Object.keys(feeds)) {
-      try {
-        const feed = feeds[key];
-        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-        if (data.items && data.items.length > 0) {
-          feed.items = data.items.slice(0, 8).map(i => i.title);
+  async function fetchRSS(key) {
+    try {
+      const feed = feeds[key];
+      // Using allorigins CORS proxy to fetch raw XML directly
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
+      const res = await fetch(proxyUrl);
+      const data = await res.json();
+      if (data.contents) {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(data.contents, 'text/xml');
+        const titles = Array.from(xml.querySelectorAll('item title')).map(node => node.textContent);
+        if (titles.length > 0) {
+          feed.items = titles.slice(0, 10);
           document.getElementById(feed.el).textContent = feed.items[0];
         }
-      } catch (e) {}
+      }
+    } catch (e) {}
+  }
+
+  async function fetchAllNews() {
+    for (const key of Object.keys(feeds)) {
+      await fetchRSS(key);
     }
   }
 
@@ -380,8 +390,8 @@
     }
   }
 
-  setInterval(fetchAllNews, 3600000); // Fetch fresh RSS feeds every 1 hour
-  setInterval(rotateNewsLines, 20000); // Cycle through the hour's top headlines every 20s
+  setInterval(fetchAllNews, 3600000); // Refresh feeds every 1 hour
+  setInterval(rotateNewsLines, 20000); // Rotate headlines every 20 seconds
   fetchAllNews();
 </script>
 </body>
