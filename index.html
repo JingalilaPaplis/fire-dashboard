@@ -244,32 +244,39 @@
     }
     setInterval(fetchQuote, 1800000);
     fetchQuote();
-
-    // 9. Live News Feeds (Using allorigins proxy)
+// 9. Live News Feeds (Using robust raw proxy and BBC India)
     const newsFeeds = {
-      world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: ['Global markets react to latest central bank announcements'], idx: 0, el: 'news-world' },
-      india: { url: 'https://www.thehindu.com/news/national/feeder/default.rss', items: ['National infrastructure projects enter final review phase'], idx: 0, el: 'news-india' },
-      uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation'], idx: 0, el: 'news-uk' },
-      bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates'], idx: 0, el: 'news-bham' }
+      world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: ['Global markets react to latest central bank announcements', 'International climate summit reaches new accord'], idx: 0, el: 'news-world' },
+      india: { url: 'https://feeds.bbci.co.uk/news/world/asia/india/rss.xml', items: ['National infrastructure projects enter final review phase', 'Economic growth figures exceed quarterly projections'], idx: 0, el: 'news-india' },
+      uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation', 'National health service rolls out new patient portals'], idx: 0, el: 'news-uk' },
+      bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates', 'Birmingham cultural festivals draw record visitor numbers'], idx: 0, el: 'news-bham' }
     };
 
     async function fetchRSS(key) {
+      const feed = newsFeeds[key];
+      const el = document.getElementById(feed.el);
+      
+      // Instantly load the fallback text so it never says "Loading..."
+      if (el) el.textContent = feed.items[0];
+
       try {
-        const feed = newsFeeds[key];
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
+        // Fetch the live feed using a direct raw XML proxy
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}`;
         const res = await fetch(proxyUrl);
-        const data = await res.json();
-        if (data.contents) {
-          const parser = new DOMParser();
-          const xml = parser.parseFromString(data.contents, 'text/xml');
-          const titles = Array.from(xml.querySelectorAll('item title')).map(node => node.textContent);
-          if (titles.length > 0) {
-            feed.items = titles.slice(0, 10);
-            const el = document.getElementById(feed.el);
-            if (el) el.textContent = feed.items[0];
-          }
+        const text = await res.text();
+        
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const titles = Array.from(xml.querySelectorAll('item title')).map(node => node.textContent);
+        
+        if (titles.length > 0) {
+          // If successful, overwrite the fallback items with the live news
+          feed.items = titles.slice(0, 10);
+          if (el) el.textContent = feed.items[0]; 
         }
-      } catch (e) {}
+      } catch (e) {
+        // If the fetch fails, it gracefully continues rotating the fallback items without crashing
+      }
     }
 
     async function fetchAllNews() {
@@ -294,9 +301,10 @@
       }
     }
 
-    setInterval(fetchAllNews, 3600000); 
-    setInterval(rotateNewsLines, 20000); 
+    setInterval(fetchAllNews, 3600000); // Check for new articles every hour
+    setInterval(rotateNewsLines, 20000); // Rotate headlines every 20 seconds
     fetchAllNews();
+
   </script>
 </body>
 </html>
