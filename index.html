@@ -150,4 +150,153 @@
         const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
         const data = await res.json();
         const price = Math.round(parseFloat(data.lastPrice)).toLocaleString('en-US');
-        const change = parseFloat(data.priceChangePercent).toFixed(1
+        const change = parseFloat(data.priceChangePercent).toFixed(1);
+        document.getElementById('btc-price').textContent = '$' + price;
+        const changeEl = document.getElementById('btc-change');
+        changeEl.textContent = `(${change >= 0 ? '+' : ''}${change}%)`;
+        changeEl.className = change >= 0 ? 'pos-subtle' : 'neg-subtle';
+      } catch (e) {}
+    }
+    setInterval(fetchBTC, 15000);
+    fetchBTC();
+
+    // 5. Weather
+    const wCodes = { 0:'Clear', 1:'Mostly Clear', 2:'Partly Cloudy', 3:'Overcast', 45:'Foggy', 51:'Light Drizzle', 61:'Light Rain', 63:'Moderate Rain', 65:'Heavy Rain', 71:'Snow', 80:'Showers', 95:'Thunderstorm' };
+    async function fetchWeather() {
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`);
+        const data = await res.json();
+        const cw = data.current_weather;
+        const desc = wCodes[cw.weathercode] || 'Cloudy';
+        document.getElementById('temp').textContent = Math.round(cw.temperature) + '°C';
+        document.getElementById('weather-sub').textContent = `Birmingham • ${desc} (${Math.round(cw.windspeed)} km/h)`;
+      } catch (e) {}
+    }
+    setInterval(fetchWeather, 900000);
+    fetchWeather();
+
+    // 6. Salah Timetable
+    async function fetchSalah() {
+      try {
+        const res = await fetch(`https://api.aladhan.com/v1/timings?latitude=${LAT}&longitude=${LON}&method=2&school=1`);
+        const json = await res.json();
+        const timings = json.data.timings;
+        const hijri = json.data.date.hijri;
+        hijriString = `${hijri.day} ${hijri.month.en} ${hijri.year} AH`;
+
+        prayers.forEach(p => {
+          const cleanTime = timings[p].split(' ')[0];
+          prayerTimings[p] = cleanTime;
+          const el = document.getElementById(`time-${p}`);
+          if(el) el.textContent = cleanTime;
+        });
+        highlightNextPrayer(new Date());
+      } catch (e) {}
+    }
+    function highlightNextPrayer(now) {
+      if (!prayerTimings['Fajr']) return;
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      let nextP = 'Fajr';
+      for (const p of prayers) {
+        const [h, m] = prayerTimings[p].split(':').map(Number);
+        if (h * 60 + m > nowMins) {
+          nextP = p;
+          break;
+        }
+      }
+      prayers.forEach(p => {
+        const box = document.getElementById(`box-${p}`);
+        if (box) {
+          if (p === nextP) box.classList.add('next-prayer');
+          else box.classList.remove('next-prayer');
+        }
+      });
+    }
+    setInterval(fetchSalah, 3600000);
+    fetchSalah();
+
+    // 7. Random Ayah
+    async function fetchRandomAyah() {
+      try {
+        const randomNum = Math.floor(Math.random() * 6236) + 1;
+        const res = await fetch(`https://api.alquran.cloud/v1/ayah/${randomNum}/editions/quran-uthmani,en.sahih`);
+        const json = await res.json();
+        if (json.data && json.data.length === 2) {
+          document.getElementById('ayah-ar').textContent = json.data[0].text;
+          document.getElementById('ayah-en').textContent = `"${json.data[1].text}"`;
+          document.getElementById('ayah-ref').textContent = `${json.data[1].surah.englishName} (${json.data[1].surah.number}:${json.data[1].numberInSurah})`;
+        }
+      } catch (e) {}
+    }
+    setInterval(fetchRandomAyah, 1800000);
+    fetchRandomAyah();
+
+    // 8. Random Quote
+    async function fetchQuote() {
+      try {
+        const res = await fetch('https://dummyjson.com/quotes/random');
+        const data = await res.json();
+        if (data.quote) {
+          document.getElementById('quote-text').textContent = `"${data.quote}"`;
+          document.getElementById('quote-author').textContent = `— ${data.author}`;
+        }
+      } catch (e) {}
+    }
+    setInterval(fetchQuote, 1800000);
+    fetchQuote();
+
+    // 9. Live News Feeds (Using allorigins proxy)
+    const newsFeeds = {
+      world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: ['Global markets react to latest central bank announcements'], idx: 0, el: 'news-world' },
+      india: { url: 'https://www.thehindu.com/news/national/feeder/default.rss', items: ['National infrastructure projects enter final review phase'], idx: 0, el: 'news-india' },
+      uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation'], idx: 0, el: 'news-uk' },
+      bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates'], idx: 0, el: 'news-bham' }
+    };
+
+    async function fetchRSS(key) {
+      try {
+        const feed = newsFeeds[key];
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
+        const res = await fetch(proxyUrl);
+        const data = await res.json();
+        if (data.contents) {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(data.contents, 'text/xml');
+          const titles = Array.from(xml.querySelectorAll('item title')).map(node => node.textContent);
+          if (titles.length > 0) {
+            feed.items = titles.slice(0, 10);
+            const el = document.getElementById(feed.el);
+            if (el) el.textContent = feed.items[0];
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function fetchAllNews() {
+      for (const key of Object.keys(newsFeeds)) {
+        await fetchRSS(key);
+      }
+    }
+
+    function rotateNewsLines() {
+      for (const key of Object.keys(newsFeeds)) {
+        const feed = newsFeeds[key];
+        if (feed.items.length <= 1) continue;
+        feed.idx = (feed.idx + 1) % feed.items.length;
+        const el = document.getElementById(feed.el);
+        if (el) {
+          el.style.opacity = 0;
+          setTimeout(() => {
+            el.textContent = feed.items[feed.idx];
+            el.style.opacity = 1;
+          }, 400);
+        }
+      }
+    }
+
+    setInterval(fetchAllNews, 3600000); 
+    setInterval(rotateNewsLines, 20000); 
+    fetchAllNews();
+  </script>
+</body>
+</html>
