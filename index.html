@@ -244,12 +244,12 @@
     }
     setInterval(fetchQuote, 1800000);
     fetchQuote();
-// 9. Live News Feeds (Using robust raw proxy and BBC India)
+// 9. Live News Feeds (Using robust proxy-friendly sources)
     const newsFeeds = {
-      world: { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', items: ['Global markets react to latest central bank announcements', 'International climate summit reaches new accord'], idx: 0, el: 'news-world' },
-      india: { url: 'https://feeds.bbci.co.uk/news/world/asia/india/rss.xml', items: ['National infrastructure projects enter final review phase', 'Economic growth figures exceed quarterly projections'], idx: 0, el: 'news-india' },
-      uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation', 'National health service rolls out new patient portals'], idx: 0, el: 'news-uk' },
-      bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates', 'Birmingham cultural festivals draw record visitor numbers'], idx: 0, el: 'news-bham' }
+      world: { url: 'https://www.aljazeera.com/xml/rss/all.xml', items: ['Global markets react to latest central bank announcements'], idx: 0, el: 'news-world' },
+      india: { url: 'https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms', items: ['National infrastructure projects enter final review phase'], idx: 0, el: 'news-india' },
+      uk:    { url: 'https://feeds.bbci.co.uk/news/uk/rss.xml', items: ['UK public sector updates focus on digital transformation'], idx: 0, el: 'news-uk' },
+      bham:  { url: 'https://feeds.bbci.co.uk/news/england/birmingham_and_black_country/rss.xml', items: ['West Midlands transport network announces weekend schedule updates'], idx: 0, el: 'news-bham' }
     };
 
     async function fetchRSS(key) {
